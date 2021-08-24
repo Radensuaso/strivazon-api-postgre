@@ -1,19 +1,13 @@
 import express from "express";
-import {
-  readProducts,
-  writeProducts,
-  saveProductPicture,
-  readProductsReviews,
-  removeProductPicture,
-} from "../../lib/fs-tools.js";
 import { productsValidation } from "./validation.js";
 import { validationResult } from "express-validator";
-import uniqid from "uniqid";
 import createHttpError from "http-errors";
-import multer from "multer";
+import db from "../../db/connection.js";
+/* import multer from "multer"; */
 
 const productsRouter = express.Router();
 
+//=============== Get all =====================
 productsRouter.get("/", async (req, res, next) => {
   try {
     const products = await readProducts();
@@ -34,6 +28,7 @@ productsRouter.get("/", async (req, res, next) => {
   }
 });
 
+//=============== Get single =====================
 productsRouter.get("/:_id", async (req, res, next) => {
   try {
     const paramsID = req.params._id;
@@ -54,7 +49,8 @@ productsRouter.get("/:_id", async (req, res, next) => {
   }
 });
 
-productsRouter.get("/:_id/productsReviews", async (req, res, next) => {
+//=============== Get  specific product review =====================
+productsRouter.get("/:_id/reviews", async (req, res, next) => {
   try {
     const paramsID = req.params._id;
     const products = await readProducts();
@@ -81,28 +77,18 @@ productsRouter.get("/:_id/productsReviews", async (req, res, next) => {
   }
 });
 
+//=============== post products =====================
 productsRouter.post("/", productsValidation, async (req, res, next) => {
   try {
     const errorList = validationResult(req);
     if (errorList.isEmpty()) {
-      const products = await readProducts();
-      const reqBody = req.body;
+      const { name, description, brand, image_url, price, category } = req.body;
 
-      const newProduct = {
-        _id: uniqid(),
-        name: reqBody.name,
-        description: reqBody.description,
-        brand: reqBody.brand,
-        imageUrl: "",
-        price: reqBody.price,
-        category: reqBody.category,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      products.push(newProduct);
-      await writeProducts(products);
+      const newProduct = await db.query(
+        `INSERT INTO products(name,description,brand,image_url,price,category) VALUES('${name}','${description}','${brand}','${image_url}','${price}','${category}') RETURNING *;`
+      );
 
-      res.status(201).send(newProduct);
+      res.status(201).send(newProduct.rows[0]);
     } else {
       next(createHttpError(400, { errorList }));
     }
@@ -112,7 +98,8 @@ productsRouter.post("/", productsValidation, async (req, res, next) => {
   }
 });
 
-productsRouter.post(
+//=============== Upload picture =====================
+/* productsRouter.post(
   "/:_id/upload",
   multer().single("picture"),
   async (req, res, next) => {
@@ -144,7 +131,8 @@ productsRouter.post(
     }
   }
 );
-
+ */
+//=============== update product =====================
 productsRouter.put("/:_id", productsValidation, async (req, res, next) => {
   try {
     const errorList = validationResult(req);
@@ -173,6 +161,7 @@ productsRouter.put("/:_id", productsValidation, async (req, res, next) => {
   }
 });
 
+//=============== Delete product =====================
 productsRouter.delete("/:_id", async (req, res, next) => {
   try {
     const paramsID = req.params._id;

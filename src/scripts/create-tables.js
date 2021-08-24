@@ -9,7 +9,7 @@ const createDefaultTables = async () => {
     /** read create table queries from disk*/
     const sqlCommandsBuffer = await fs.readFile(sqlFilePath);
     const sqlCommands = sqlCommandsBuffer.toString();
-    /** exacute  create table queries */
+    /** execute  create table queries */
     await db.query(sqlCommands);
     console.log(`✅ Default tables are  created.`);
   } catch (error) {
