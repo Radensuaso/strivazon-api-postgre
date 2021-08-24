@@ -10,17 +10,15 @@ const productsRouter = express.Router();
 //=============== Get all =====================
 productsRouter.get("/", async (req, res, next) => {
   try {
-    const products = await readProducts();
-
     if (req.query && req.query.category) {
-      const filteredProducts = products.filter((product) =>
-        product.category
-          .toLocaleLowerCase()
-          .includes(req.query.category.toLocaleLowerCase())
+      const { category } = req.query;
+      const filteredProducts = await db.query(
+        `SELECT * FROM products WHERE category LIKE '%${category}%'`
       );
-      res.send(filteredProducts);
+      res.send(filteredProducts.rows);
     } else {
-      res.send(products);
+      const products = await db.query(`SELECT * FROM products`);
+      res.send(products.rows);
     }
   } catch (error) {
     console.log(error);
@@ -29,13 +27,14 @@ productsRouter.get("/", async (req, res, next) => {
 });
 
 //=============== Get single =====================
-productsRouter.get("/:_id", async (req, res, next) => {
+productsRouter.get("/:product_id", async (req, res, next) => {
   try {
-    const paramsID = req.params._id;
-    const products = await readProducts();
-    const product = products.find((p) => p._id === paramsID);
+    const paramsID = req.params.product_id;
+    const product = await db.query(
+      `SELECT * FROM products WHERE product_id=${paramsID}`
+    );
     if (product) {
-      res.send(product);
+      res.send(product.rows);
     } else {
       res.send(
         createHttpError(
