@@ -117,27 +117,23 @@ reviewsRouter.put(
 );
 
 //================delete review====================
-reviewsRouter.delete("/:_id", async (req, res, next) => {
+reviewsRouter.delete("/:review_id", async (req, res, next) => {
   try {
-    const paramsID = req.params._id;
-    const productsReviews = await readProductsReviews();
-    const productReview = productsReviews.find((pR) => pR._id === paramsID);
-    if (productReview) {
-      const remainingProductsReviews = productsReviews.filter(
-        (pR) => pR._id !== paramsID
+    const paramsID = req.params.review_id;
+    const review = await db.query(
+      `SELECT * FROM reviews WHERE review_id=${paramsID}`
+    );
+    if (review.rows.length > 0) {
+      const deletedReview = await db.query(
+        `DELETE FROM reviews WHERE review_id=${paramsID};`
       );
-
-      await writeProductsReviews(remainingProductsReviews);
-
-      res.send({
-        message: `The Product Review with the id: ${productReview._id} was deleted`,
-        blogPost: productReview,
-      });
+      console.log(deletedReview);
+      res.send(`The review with the id ${paramsID} was deleted.`);
     } else {
       next(
         createHttpError(
           404,
-          `The product review with the id: ${paramsID} was not found`
+          `The Review with the id: ${paramsID} was not found.`
         )
       );
     }
