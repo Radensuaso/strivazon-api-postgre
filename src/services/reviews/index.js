@@ -1,9 +1,4 @@
 import express from "express";
-import {
-  readProducts,
-  readProductsReviews,
-  writeProductsReviews,
-} from "../../lib/fs-tools.js";
 import { productsReviewsValidation } from "./validation.js";
 import { validationResult } from "express-validator";
 import uniqid from "uniqid";
