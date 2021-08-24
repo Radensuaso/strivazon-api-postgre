@@ -108,15 +108,13 @@ productsRouter.post(
       const product = await db.query(
         `SELECT * FROM products WHERE product_id=${paramsID}`
       );
-      console.log(product);
       if (product.rows.length > 0) {
         const imageUrl = req.file.path;
         const updatedProduct = await db.query(
           `UPDATE products SET image_url='${imageUrl}' WHERE product_id=${paramsID} RETURNING *;`
         );
 
-        console.log(updatedProduct);
-        res.send(updatedProduct.rows);
+        res.send(updatedProduct.rows[0]);
       } else {
         next(
           createHttpError(
@@ -132,55 +130,64 @@ productsRouter.post(
 );
 
 //=============== update product =====================
-productsRouter.put("/:_id", productsValidation, async (req, res, next) => {
-  try {
-    const errorList = validationResult(req);
-    if (errorList.isEmpty()) {
-      const paramsID = req.params._id;
-      const products = await readProducts();
-      const productToUpdate = products.find((p) => p._id === paramsID);
-
-      const updatedProduct = {
-        ...productToUpdate,
-        updatedAt: new Date(),
-        ...req.body,
-      };
-
-      const remainingProducts = products.filter((p) => p._id !== paramsID);
-
-      remainingProducts.push(updatedProduct);
-      await writeProducts(remainingProducts);
-
-      res.send(updatedProduct);
-    } else {
-      next(createHttpError(400, { errorList }));
+productsRouter.put(
+  "/:product_id",
+  productsValidation,
+  async (req, res, next) => {
+    try {
+      const errorList = validationResult(req);
+      if (errorList.isEmpty()) {
+        const paramsID = req.params.product_id;
+        const product = await db.query(
+          `SELECT * FROM products WHERE product_id=${paramsID}`
+        );
+        if (product.rows.length > 0) {
+          const { name, description, brand, price, category } = req.body;
+          const updatedProduct = await db.query(
+            `UPDATE products SET name='${name}',
+                                description='${description}',
+                                brand='${brand}',
+                                price='${price}',
+                                category='${category}',
+                                updated_at=NOW()
+                                WHERE product_id=${paramsID} RETURNING *;`
+          );
+          res.send(updatedProduct.rows[0]);
+        } else {
+          next(
+            createHttpError(
+              404,
+              `The Product with the id: ${paramsID} was not found.`
+            )
+          );
+        }
+      } else {
+        next(createHttpError(400, { errorList }));
+      }
+    } catch (error) {
+      next(error);
     }
-  } catch (error) {
-    next(error);
   }
-});
+);
 
 //=============== Delete product =====================
-productsRouter.delete("/:_id", async (req, res, next) => {
+productsRouter.delete("/:product_id", async (req, res, next) => {
   try {
-    const paramsID = req.params._id;
-    const products = await readProducts();
-    const product = products.find((p) => p._id === paramsID);
-    if (product) {
-      const remainingProducts = products.filter((p) => p._id !== paramsID);
-
-      await writeProducts(remainingProducts);
-      await removeProductPicture(`${product._id}.jpg`);
-
-      res.send({
-        message: `The Product with the id: ${product._id} was deleted`,
-        blogPost: product,
-      });
+    const paramsID = req.params.product_id;
+    const product = await db.query(
+      `SELECT * FROM products WHERE product_id=${paramsID}`
+    );
+    if (product.rows.length > 0) {
+      const deletedProduct = await db.query(
+        `DELETE FROM products WHERE product_id=${paramsID};`
+      );
+      console.log(deletedProduct);
+      res.send(`The product with the id ${paramsID} was deleted.`);
     } else {
       next(
         createHttpError(
           404,
-          `The product with the id: ${paramsID} was not found`
+          `The Product with the id: ${paramsID} was not found.`
         )
       );
     }
