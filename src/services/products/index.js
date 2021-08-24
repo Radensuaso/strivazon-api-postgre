@@ -112,11 +112,11 @@ productsRouter.post(
       if (product.rows.length > 0) {
         const imageUrl = req.file.path;
         const updatedProduct = await db.query(
-          `UPDATE products SET image_url='${imageUrl} WHERE product_id=${paramsID} RETURNING *;'`
+          `UPDATE products SET image_url='${imageUrl}' WHERE product_id=${paramsID} RETURNING *;`
         );
 
         console.log(updatedProduct);
-        res.send(updatedProduct);
+        res.send(updatedProduct.rows);
       } else {
         next(
           createHttpError(
