@@ -52,18 +52,25 @@ productsRouter.get("/:product_id", async (req, res, next) => {
 //=============== Get  specific product review =====================
 productsRouter.get("/:product_id/reviews", async (req, res, next) => {
   try {
-    const paramsID = req.params._id;
-    const products = await readProducts();
-    const product = products.find((p) => p._id === paramsID);
-    if (product) {
-      const productsReviews = await readProductsReviews();
-
-      console.log(productsReviews);
-
-      const particularProductReviews = productsReviews.filter(
-        (p) => p.productId === paramsID
-      );
-      res.send(particularProductReviews);
+    const paramsID = req.params.product_id;
+    const product = await db.query(
+      `SELECT * FROM products WHERE product_id=${paramsID}`
+    );
+    if (product.rows.length > 0) {
+      const reviews = await db.query(`SELECT 
+		                                  reviews.review_id,
+		                                  reviews.product_id ,
+		                                  reviews.comment,
+		                                  reviews.rate,
+		                                  reviews.created_at,
+                                      reviews.updated_at,
+		                                  product.product_id,
+		                                  product.name,
+		                                  product.brand,
+		                                  product.image_url
+		                                  FROM reviews
+		                                  INNER JOIN products AS product WHERE reviews.product_id=${paramsID} ORDER BY reviews.created_at DESC;`);
+      res.send(reviews.rows);
     } else {
       res.send(
         createHttpError(
