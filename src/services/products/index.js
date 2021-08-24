@@ -35,7 +35,7 @@ productsRouter.get("/:product_id", async (req, res, next) => {
       `SELECT * FROM products WHERE product_id=${paramsID}`
     );
     if (product.rows.length > 0) {
-      res.send(product.rows);
+      res.send(product.rows[0]);
     } else {
       res.send(
         createHttpError(
