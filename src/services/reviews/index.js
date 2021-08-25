@@ -1,39 +1,37 @@
 import express from "express";
-import {
-  readProducts,
-  readProductsReviews,
-  writeProductsReviews,
-} from "../../lib/fs-tools.js";
 import { productsReviewsValidation } from "./validation.js";
 import { validationResult } from "express-validator";
 import uniqid from "uniqid";
 import createHttpError from "http-errors";
+import db from "../../db/connection.js";
 
 const reviewsRouter = express.Router();
 
+//================Get all========================
 reviewsRouter.get("/", async (req, res, next) => {
   try {
-    const productsReviews = await readProductsReviews();
-
-    res.send(productsReviews);
+    const products = await db.query(`SELECT * FROM reviews`);
+    res.send(products.rows);
   } catch (error) {
     console.log(error);
     next(error);
   }
 });
 
-reviewsRouter.get("/:_id", async (req, res, next) => {
+//================Get single========================
+reviewsRouter.get("/:review_id", async (req, res, next) => {
   try {
-    const paramsID = req.params._id;
-    const productsReviews = await readProductsReviews();
-    const productReview = productsReviews.find((pR) => pR._id === paramsID);
-    if (productReview) {
-      res.send(productReview);
+    const paramsID = req.params.review_id;
+    const review = await db.query(
+      `SELECT * FROM reviews WHERE review_id=${paramsID}`
+    );
+    if (review.rows.length > 0) {
+      res.send(review.rows[0]);
     } else {
       res.send(
         createHttpError(
           404,
-          `The Product Review with the id: ${paramsID} was not found.`
+          `The review with the id: ${paramsID} was not found.`
         )
       );
     }
@@ -42,31 +40,26 @@ reviewsRouter.get("/:_id", async (req, res, next) => {
   }
 });
 
+//===============Post Review=======================
 reviewsRouter.post(
-  "/product/:_id",
+  "/product/:product_id",
   productsReviewsValidation,
   async (req, res, next) => {
     try {
       const errorList = validationResult(req);
       if (errorList.isEmpty()) {
-        const paramsId = req.params._id;
-        const products = await readProducts();
-        const product = products.find((p) => p._id === paramsId);
-        if (product) {
-          const reqBody = req.body;
+        const paramsID = req.params.product_id;
+        const product = await db.query(
+          `SELECT * FROM products WHERE product_id=${paramsID}`
+        );
+        if (product.rows.length > 0) {
+          const { comment, rate } = req.body;
 
-          const productsReviews = await readProductsReviews();
-          const newProductReview = {
-            _id: uniqid(),
-            comment: reqBody.comment,
-            rate: reqBody.rate,
-            productId: product._id,
-            createdAt: new Date(),
-          };
-          productsReviews.push(newProductReview);
-          await writeProductsReviews(productsReviews);
+          const newReview = await db.query(
+            `INSERT INTO reviews(comment,rate,product_id) VALUES('${comment}','${rate}','${paramsID}') RETURNING *;`
+          );
 
-          res.status(201).send(newProductReview);
+          res.status(201).send(newReview.rows[0]);
         } else {
           res.send(
             createHttpError(
@@ -85,32 +78,35 @@ reviewsRouter.post(
   }
 );
 
+//==================Update Review ===================
 reviewsRouter.put(
-  "/:_id",
+  "/:review_id",
   productsReviewsValidation,
   async (req, res, next) => {
     try {
       const errorList = validationResult(req);
       if (errorList.isEmpty()) {
-        const paramsID = req.params._id;
-        const productsReviews = await readProductsReviews();
-        const productReviewToUpdate = productsReviews.find(
-          (pR) => pR._id === paramsID
+        const paramsID = req.params.review_id;
+        const review = await db.query(
+          `SELECT * FROM reviews WHERE review_id=${paramsID}`
         );
-
-        const updatedProductReview = {
-          ...productReviewToUpdate,
-          ...req.body,
-        };
-
-        const remainingProductsReviews = productsReviews.filter(
-          (pR) => pR._id !== paramsID
-        );
-
-        remainingProductsReviews.push(updatedProductReview);
-        await writeProductsReviews(remainingProductsReviews);
-
-        res.send(updatedProductReview);
+        if (review.rows.length > 0) {
+          const { comment, rate } = req.body;
+          const updatedReview = await db.query(
+            `UPDATE reviews SET comment='${comment}',
+                                rate='${rate}',
+                                updated_at=NOW()
+                                WHERE review_id=${paramsID} RETURNING *;`
+          );
+          res.send(updatedReview.rows[0]);
+        } else {
+          next(
+            createHttpError(
+              404,
+              `The Review with the id: ${paramsID} was not found.`
+            )
+          );
+        }
       } else {
         next(createHttpError(400, { errorList }));
       }
@@ -120,27 +116,24 @@ reviewsRouter.put(
   }
 );
 
-reviewsRouter.delete("/:_id", async (req, res, next) => {
+//================delete review====================
+reviewsRouter.delete("/:review_id", async (req, res, next) => {
   try {
-    const paramsID = req.params._id;
-    const productsReviews = await readProductsReviews();
-    const productReview = productsReviews.find((pR) => pR._id === paramsID);
-    if (productReview) {
-      const remainingProductsReviews = productsReviews.filter(
-        (pR) => pR._id !== paramsID
+    const paramsID = req.params.review_id;
+    const review = await db.query(
+      `SELECT * FROM reviews WHERE review_id=${paramsID}`
+    );
+    if (review.rows.length > 0) {
+      const deletedReview = await db.query(
+        `DELETE FROM reviews WHERE review_id=${paramsID};`
       );
-
-      await writeProductsReviews(remainingProductsReviews);
-
-      res.send({
-        message: `The Product Review with the id: ${productReview._id} was deleted`,
-        blogPost: productReview,
-      });
+      console.log(deletedReview);
+      res.send(`The review with the id ${paramsID} was deleted.`);
     } else {
       next(
         createHttpError(
           404,
-          `The product review with the id: ${paramsID} was not found`
+          `The Review with the id: ${paramsID} was not found.`
         )
       );
     }
