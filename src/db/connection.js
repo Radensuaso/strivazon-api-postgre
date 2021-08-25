@@ -3,18 +3,6 @@ import pg from "pg";
 // for connection information
 const { Pool } = pg;
 
-const sslConfig =
-  process.env.NODE_ENV !== "development"
-    ? {
-        ssl: {
-          rejectUnauthorized: false,
-        },
-      }
-    : {};
-
-const db = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ...sslConfig,
-});
+const db = new Pool({});
 
 export default db;
